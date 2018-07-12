@@ -1,8 +1,12 @@
-set schema 'minha-grana';
+SET SCHEMA 'minha-grana';
 
-create table "accounts" (
-	account_id uuid PRIMARY KEY,
-	some_timestamp timestamptz NOT NULL,
-	some_text text,
-	some_boolean boolean
+CREATE TABLE "minha-grana"."accounts" (
+	id uuid PRIMARY KEY,
+	created_date timestamptz NOT NULL,
+	user_id uuid REFERENCES users (id) NOT NULL,
+	bank_id uuid REFERENCES banks (id) NOT NULL,
+	agency_number text,
+	account_number text
 );
+
+CREATE INDEX ON "minha-grana"."accounts" (user_id);

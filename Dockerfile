@@ -1,4 +1,4 @@
-FROM openjdk:8-jdk-alpine
+FROM openjdk:10-jdk-slim
 
 ARG ARTIFACT_NAME="minha-grana-api"
 ARG ARTIFACT_VERSION="0.0.1-SNAPSHOT"

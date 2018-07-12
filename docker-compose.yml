@@ -1,0 +1,18 @@
+version: '3'
+services:
+  minha-grana-api:
+    build: .
+    ports:
+     - "8080:8080"
+     - "8081:8081"
+    networks:
+      - minha-grana-app
+    environment:
+      - "SPRING_PROFILES_ACTIVE=prod"
+  minha-grana-db:
+    build: db-schema
+    networks:
+      - minha-grana-app
+
+networks:
+  minha-grana-app:
