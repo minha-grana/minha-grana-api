@@ -1,4 +1,4 @@
-package com.minhagrana.api.configuration;
+package com.minhagrana.api.configuration.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;

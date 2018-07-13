@@ -1,4 +1,4 @@
-package com.minhagrana.api.configuration;
+package com.minhagrana.api.configuration.jackson;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
