@@ -4,6 +4,8 @@ import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.JwkProviderBuilder;
 import com.auth0.spring.security.api.JwtAuthenticationProvider;
 import com.auth0.spring.security.api.authentication.PreAuthenticatedAuthenticationJsonWebToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,17 +22,57 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Configuration
 public class SecurityConfig {
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Value(value = "${auth0.apiAudience}")
     private String apiAudience;
 
     @Value(value = "${auth0.issuer}")
     private String issuer;
+
+    private static Authentication newEmptyAuthentication() {
+        return new Authentication() {
+            @Override
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+                return Collections.singletonList((GrantedAuthority) () -> "ADMIN");
+            }
+
+            @Override
+            public Object getCredentials() {
+                return null;
+            }
+
+            @Override
+            public Object getDetails() {
+                return null;
+            }
+
+            @Override
+            public Object getPrincipal() {
+                return null;
+            }
+
+            @Override
+            public boolean isAuthenticated() {
+                return false;
+            }
+
+            @Override
+            public void setAuthenticated(boolean b) throws IllegalArgumentException {
+            }
+
+            @Override
+            public String getName() {
+                return null;
+            }
+        };
+    }
 
     @Bean
     JwkProvider jwkProviderBuilder() {
@@ -52,36 +94,38 @@ public class SecurityConfig {
                 .and().authorizeExchange()
                 .pathMatchers("/public/**").permitAll()
                 .pathMatchers("/**").authenticated()
-                .pathMatchers("/admin/**").hasAuthority("admin")
+                .pathMatchers("/admin/**").hasAuthority("ADMIN")
                 .anyExchange().authenticated()
                 .and()
                 .securityContextRepository(new ServerSecurityContextRepository() {
                     @Override
                     public Mono<Void> save(ServerWebExchange serverWebExchange, SecurityContext securityContext) {
+                        log.info(">>> serverWebExchange: {}", serverWebExchange);
+                        log.info(">>> securityContext: {}", securityContext);
                         return Mono.empty();
                     }
 
                     @Override
                     public Mono<SecurityContext> load(ServerWebExchange serverWebExchange) {
                         SecurityContext context = SecurityContextHolder.createEmptyContext();
-                        Optional<String> optionalToken = tokenFromRequest(serverWebExchange.getRequest());
-                        optionalToken.ifPresent(token -> {
-                            PreAuthenticatedAuthenticationJsonWebToken authentication = PreAuthenticatedAuthenticationJsonWebToken.usingToken(token);
-                            if (authentication != null) {
-                                context.setAuthentication(authentication);
-                            }
-                        });
 
-                        checkContextAuthentication(context);
+                        tokenFromRequest(serverWebExchange.getRequest())
+                                .ifPresent(token ->
+                                        Optional.ofNullable(PreAuthenticatedAuthenticationJsonWebToken.usingToken(token))
+                                                .ifPresent(context::setAuthentication));
+
+                        if (context.getAuthentication() == null) {
+                            context.setAuthentication(newEmptyAuthentication());
+                        }
 
                         return Mono.just(context);
                     }
                 })
-                .authenticationManager(auth -> {
-                    Authentication authentication = auth;
-                    Authentication authenticate = jwtAuthenticationProvider.authenticate(authentication);
-                    if (authenticate != null) {
-                        authentication = authenticate;
+                .authenticationManager(originalAuth -> {
+                    Authentication authentication = originalAuth;
+                    Authentication jwtAuthentication = jwtAuthenticationProvider.authenticate(authentication);
+                    if (jwtAuthentication != null) {
+                        authentication = jwtAuthentication;
                     }
                     return Mono.just(authentication);
                 }).build();
@@ -98,44 +142,4 @@ public class SecurityConfig {
         return Optional.ofNullable(atomicTokenReference.get());
     }
 
-    private void checkContextAuthentication(SecurityContext context) {
-        if (context.getAuthentication() == null) {
-            context.setAuthentication(new Authentication() {
-                @Override
-                public Collection<? extends GrantedAuthority> getAuthorities() {
-                    return null;
-                }
-
-                @Override
-                public Object getCredentials() {
-                    return null;
-                }
-
-                @Override
-                public Object getDetails() {
-                    return null;
-                }
-
-                @Override
-                public Object getPrincipal() {
-                    return null;
-                }
-
-                @Override
-                public boolean isAuthenticated() {
-                    return false;
-                }
-
-                @Override
-                public void setAuthenticated(boolean b) throws IllegalArgumentException {
-
-                }
-
-                @Override
-                public String getName() {
-                    return null;
-                }
-            });
-        }
-    }
 }
